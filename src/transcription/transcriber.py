@@ -1,5 +1,6 @@
 from faster_whisper import WhisperModel
 from src.audio.capture import capture_audio_chunk
+from src.detection.name_detector import detect_name
 
 
 def main():
@@ -17,11 +18,17 @@ def main():
                 vad_filter=True
             )
 
-            print(f"\nDetected language: {info.language}")
-
+            # Process transcription results
             for segment in segments:
-                if segment.text.strip():
-                    print("Transcript:", segment.text.strip())
+                text = segment.text.strip()
+
+                if not text:
+                    continue
+
+                print("Transcript:", text)
+
+                if detect_name(text):
+                    print("\n🔔 ALERT: Someone mentioned Rushikesh!\n")
 
         except KeyboardInterrupt:
             print("\nStopped listening.")
