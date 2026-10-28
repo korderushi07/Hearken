@@ -1,0 +1,4 @@
+PyAudioWPatch
+faster-whisper
+PyAudioWPatch
+faster-whisper
