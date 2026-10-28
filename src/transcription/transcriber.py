@@ -1,6 +1,7 @@
 from faster_whisper import WhisperModel
 from src.audio.capture import capture_audio_chunk
 from src.detection.name_detector import detect_name
+from src.detection.keyword_detector import detect_keywords
 
 
 def main():
@@ -29,6 +30,11 @@ def main():
 
                 if detect_name(text):
                     print("\n🔔 ALERT: Someone mentioned Rushikesh!\n")
+
+                keywords = detect_keywords(text)
+
+                if keywords:
+                    print(f"\n🔔 KEYWORD ALERT: {', '.join(keywords)}\n")
 
         except KeyboardInterrupt:
             print("\nStopped listening.")
