@@ -6,5 +6,7 @@ USER_NAME = "Rushikesh"
 WATCHED_KEYWORDS = [
     "deployment",
     "deadline",
-    "project"
+    "project",
+    "rushikesh",
+    "nehal",
 ]
