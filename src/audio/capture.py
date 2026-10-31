@@ -2,6 +2,7 @@ import pyaudiowpatch as pyaudio
 import numpy as np
 from scipy.signal import resample_poly
 from fractions import Fraction
+from src.audio.device_manager import get_default_loopback_device
 
 SAMPLE_RATE = 16000
 CHUNK_SECONDS = 5
@@ -12,7 +13,7 @@ def capture_audio_chunk():
     stream = None
 
     try:
-        device = next(audio.get_loopback_device_info_generator())
+        device = get_default_loopback_device()
         device_index = device["index"]
         original_rate = int(device["defaultSampleRate"])
         channels = 2
@@ -48,6 +49,7 @@ def capture_audio_chunk():
             mono, ratio.numerator, ratio.denominator
         )
 
+        print(f"Audio level: {np.sqrt(np.mean(converted**2)):.4f}")
         print("Audio captured successfully!")
         return converted
 
