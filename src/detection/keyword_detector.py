@@ -1,25 +1,21 @@
 import re
-from config import WATCHED_KEYWORDS
+
+from src.settings_manager import load_settings
 
 
 def detect_keywords(text: str) -> list[str]:
-    """Return watched keywords found in the transcript."""
+
+    settings = load_settings()
+
+    if not settings["keyword_alerts_enabled"]:
+        return []
+
     found = []
 
-    for keyword in WATCHED_KEYWORDS:
+    for keyword in settings["watched_keywords"]:
         pattern = rf"\b{re.escape(keyword)}\b"
 
         if re.search(pattern, text, re.IGNORECASE):
             found.append(keyword)
 
     return found
-
-
-if __name__ == "__main__":
-    tests = [
-        "The project deployment deadline is tomorrow.",
-        "Hello everyone!",
-    ]
-
-    for text in tests:
-        print(f"{text} -> {detect_keywords(text)}")

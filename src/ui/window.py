@@ -1,5 +1,5 @@
-
 import sys
+from datetime import datetime
 
 from PySide6.QtWidgets import (
     QApplication,
@@ -10,10 +10,14 @@ from PySide6.QtWidgets import (
     QLabel,
     QPushButton,
     QFrame,
+    QListWidget,
+    QListWidgetItem,
 )
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QColor
 
 from src.transcription.worker import AudioWorker
+from src.ui.settings_dialog import SettingsDialog
 
 
 class PingMeWindow(QMainWindow):
@@ -49,9 +53,15 @@ class PingMeWindow(QMainWindow):
             "color: gray; font-size: 13px;"
         )
 
+        self.settings_button = QPushButton("⚙ Settings")
+        self.settings_button.clicked.connect(
+            self.open_settings
+        )
+
         header.addWidget(title)
         header.addWidget(subtitle)
         header.addStretch()
+        header.addWidget(self.settings_button)
 
         main_layout.addLayout(header)
 
@@ -92,22 +102,46 @@ class PingMeWindow(QMainWindow):
 
         main_layout.addWidget(alerts_title)
 
-        self.alerts_label = QLabel(
+        self.empty_label = QLabel(
             "No alerts yet.\n"
             "Detected name and keyword mentions will appear here."
         )
 
-        self.alerts_label.setAlignment(
+        self.empty_label.setAlignment(
             Qt.AlignmentFlag.AlignCenter
         )
 
-        self.alerts_label.setStyleSheet(
+        self.empty_label.setStyleSheet(
             "color: gray; padding: 40px;"
         )
 
-        main_layout.addWidget(self.alerts_label)
+        main_layout.addWidget(self.empty_label)
 
-    # Start / Stop listening
+        self.alert_list = QListWidget()
+        self.alert_list.setStyleSheet("""
+            QListWidget {
+                background-color: transparent;
+                border: none;
+                outline: none;
+            }
+
+            QListWidget::item {
+                background-color: #2b2b2b;
+                border-radius: 8px;
+                padding: 14px;
+                margin-bottom: 8px;
+            }
+        """)
+
+        self.alert_list.hide()
+        main_layout.addWidget(self.alert_list)
+
+    # Open settings dialog
+    def open_settings(self):
+        dialog = SettingsDialog(self)
+        dialog.exec()
+
+    # Start / Stop
     def toggle_listening(self):
 
         if self.worker is not None and self.worker.isRunning():
@@ -125,26 +159,15 @@ class PingMeWindow(QMainWindow):
         )
 
         self.description_label.setText(
-            "Starting audio monitoring and loading Whisper..."
+            "Loading Whisper and starting audio monitoring..."
         )
 
         self.worker = AudioWorker()
 
-        self.worker.status_changed.connect(
-            self.update_status
-        )
-
-        self.worker.alert_detected.connect(
-            self.add_alert
-        )
-
-        self.worker.error_occurred.connect(
-            self.show_error
-        )
-
-        self.worker.finished.connect(
-            self.on_worker_finished
-        )
+        self.worker.status_changed.connect(self.update_status)
+        self.worker.alert_detected.connect(self.add_alert)
+        self.worker.error_occurred.connect(self.show_error)
+        self.worker.finished.connect(self.on_worker_finished)
 
         self.worker.start()
 
@@ -160,10 +183,9 @@ class PingMeWindow(QMainWindow):
         )
 
         self.toggle_button.setEnabled(False)
-
         self.worker.stop()
 
-    # Update status from worker
+    # Update status
     def update_status(self, status):
 
         if status == "Loading Whisper model...":
@@ -189,29 +211,30 @@ class PingMeWindow(QMainWindow):
                 "font-size: 20px; font-weight: bold; color: gray;"
             )
 
-            self.description_label.setText(
-                "PingMe is currently inactive."
-            )
-
-    # Display detected alerts
+    # Add alert to history
     def add_alert(self, alert_type, transcript):
 
-        current_text = self.alerts_label.text()
+        timestamp = datetime.now().strftime("%I:%M:%S %p")
 
-        if current_text.startswith("No alerts yet."):
-            current_text = ""
-
-        new_alert = f"🔔 {alert_type}\n{transcript}\n\n"
-
-        self.alerts_label.setText(
-            new_alert + current_text
+        item = QListWidgetItem(
+            f"🔔  {alert_type}                         {timestamp}\n"
+            f"      {transcript}"
         )
 
-        self.alerts_label.setAlignment(
-            Qt.AlignmentFlag.AlignLeft
-        )
+        if alert_type == "Name Mentioned":
+            item.setForeground(QColor("#4CAF50"))
+        else:
+            item.setForeground(QColor("#64B5F6"))
 
-    # Display errors
+        self.alert_list.insertItem(0, item)
+
+        while self.alert_list.count() > 50:
+            self.alert_list.takeItem(self.alert_list.count() - 1)
+
+        self.empty_label.hide()
+        self.alert_list.show()
+
+    # Show errors
     def show_error(self, error):
 
         self.status_label.setText("● Error")
@@ -221,7 +244,7 @@ class PingMeWindow(QMainWindow):
 
         self.description_label.setText(error)
 
-    # Reset after worker exits
+    # Worker finished
     def on_worker_finished(self):
 
         self.toggle_button.setText("Start Listening")
