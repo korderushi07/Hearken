@@ -1,77 +1,76 @@
 import re
 from difflib import SequenceMatcher
-from config import USER_NAME
 
-NAME_VARIANTS = [
-    USER_NAME,
-    "Roshikesh",
-    "Rishikesh",
-    "Hushikesh",
-    "Bushikesh",
-    "Hrushikesh",
-]
+from src.settings_manager import load_settings
+
 
 SIMILARITY_THRESHOLD = 0.88
 
 
-def normalize(text: str) -> str:
-    return re.sub(r"[^a-z]", "", text.lower())
-
-
 def detect_name(text: str) -> bool:
-    normalized_text = text.lower().strip()
 
-    # Exact matching (single-word variants)
-    for name in NAME_VARIANTS:
-        pattern = rf"(?<!\w){re.escape(name.lower())}(?!\w)"
+    settings = load_settings()
 
-        if re.search(pattern, normalized_text):
-            return True
+    if not settings["name_alerts_enabled"]:
+        return False
 
-    # Match split names like "Rishi Kesh" or "Rishi-Kesh"
-    words = re.findall(r"[a-z]+", normalized_text)
-    target_names = [normalize(name) for name in NAME_VARIANTS]
+    # Get the primary name and saved variations
+    name_variants = [
+        settings["user_name"],
+        *settings["name_variations"]
+    ]
 
-    for i in range(len(words) - 1):
-        combined = words[i] + words[i + 1]
+    words = re.findall(r"[a-zA-Z]+", text.lower())
 
-        if combined in target_names:
-            return True
+    normalized_variants = [
+        re.sub(r"[^a-z]", "", name.lower())
+        for name in name_variants
+        if name.strip()
+    ]
 
-        for target in target_names:
-            if SequenceMatcher(None, combined, target).ratio() >= SIMILARITY_THRESHOLD:
+    # Exact match and fuzzy match
+    for word in words:
+
+        for variant in normalized_variants:
+
+            if word == variant:
                 return True
 
-    # Fuzzy matching for single-word transcription mistakes
-    for word in words:
-        if len(word) < 7:
-            continue
+            if (
+                len(word) >= 7
+                and SequenceMatcher(None, word, variant).ratio()
+                >= SIMILARITY_THRESHOLD
+            ):
+                return True
 
-        for target in target_names:
-            if SequenceMatcher(None, word, target).ratio() >= SIMILARITY_THRESHOLD:
+    # Detect split names such as "Rishi Kesh"
+    for i in range(len(words) - 1):
+
+        combined = words[i] + words[i + 1]
+
+        if combined in normalized_variants:
+            return True
+
+        for variant in normalized_variants:
+
+            if (
+                len(combined) >= 7
+                and SequenceMatcher(
+                    None, combined, variant
+                ).ratio() >= SIMILARITY_THRESHOLD
+            ):
                 return True
 
     return False
 
-
 if __name__ == "__main__":
-    tests = [
-        "Rushikesh, can you hear me?",
-        "Roshikesh, can you hear me?",
-        "Rishikesh, are you there?",
-        "Hushikesh, can you hear me?",
-        "Bushikesh, can you hear me?",
-        "Hello everyone!",
-        "I'm Oliver.",
-        "Bush is here.",
-        "Please finish the project.",
-        "Can you hear me?",
-        "Oliver is joining the meeting.",
-        "Rishi is here.",
-        "Hello, Rishi Kesh.",
-        "Rushi Kesh, can you hear me?",
-        "Rishi-Kesh, are you there?",
+    test_cases = [
+        "Rushikesh",
+        "Roshikesh",
+        "Rishi Kesh",
+        "Bush",
+        "Oliver"
     ]
 
-    for sentence in tests:
-        print(f"{sentence} -> {detect_name(sentence)}")
+    for text in test_cases:
+        print(f"{text}: {detect_name(text)}")
