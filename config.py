@@ -7,6 +7,5 @@ WATCHED_KEYWORDS = [
     "deployment",
     "deadline",
     "project",
-    "rushikesh",
     "nehal",
 ]
